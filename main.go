@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/google/generative-ai-go/genai"
 	"golang.design/x/clipboard"
@@ -59,18 +61,23 @@ func main() {
 	ch := clipboard.Watch(ctx, clipboard.FmtText)
 	go writeToFile(file, writeChan)
 
-	for data := range ch {
-		fmt.Println()
-		fmt.Println("---------------------------------")
-		fmt.Println()
-		fmt.Println("---------------------------------")
-		fmt.Println(string(data))
-		fmt.Println()
+	for content := range ch {
+		data := invert(string(content))
+		timestamp := time.Now().Format("2006-01-02 15:04:05")
+		part := genai.Text(
+			fmt.Sprintf(
+				"\n---------------------------------\n%s\n---------------------------------\n%s\n",
+				timestamp,
+				data,
+			),
+		)
+		writeChan <- part
+		fmt.Println(part)
 		stream := model.GenerateContentStream(
 			ctx,
 			genai.Text(
 				fmt.Sprintf(
-					"Dịch sang tiếng Việt và giải thích ngữ pháp, giải nghĩa các chữ Kanji có trong đoạn văn kèm theo phiên âm furigana, và cung cấp từ Hán Việt tương ứng:\n %s",
+					"Dịch sang tiếng Việt và giải thích ngữ pháp,  viết cách đọc bằng hiragana, giải nghĩa tất cả các chữ Kanji xuất hiện trong đoạn văn kèm theo phiên âm furigana và âm Hán Nôm tương ứng:\n %s",
 					data,
 				),
 			),
@@ -103,4 +110,16 @@ func printResponse(resp *genai.GenerateContentResponse, writeChan chan genai.Par
 			}
 		}
 	}
+}
+
+func invert(s string) string {
+	lines := strings.Split(s, "\n")
+	s = ""
+	for i := len(lines) - 1; i >= 0; i-- {
+		s += lines[i]
+		if i != 0 {
+			s += "\n"
+		}
+	}
+	return s
 }
