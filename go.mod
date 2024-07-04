@@ -1,4 +1,4 @@
-module github.com/nvhai245/geminiclip
+module github.com/nvhai245/gemiclip
 
 go 1.22.5
 
