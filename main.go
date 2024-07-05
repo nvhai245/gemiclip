@@ -77,7 +77,7 @@ func main() {
 			ctx,
 			genai.Text(
 				fmt.Sprintf(
-					"Dịch sang tiếng Việt và giải thích ngữ pháp,  viết cách đọc bằng hiragana, giải nghĩa tất cả các chữ Kanji xuất hiện trong đoạn văn kèm theo phiên âm furigana và âm Hán Nôm tương ứng:\n %s",
+					"Dịch sang tiếng Việt và giải thích ngữ pháp, viết cách đọc bằng hiragana, giải nghĩa tất cả các chữ Kanji xuất hiện trong đoạn văn kèm theo phiên âm furigana và từ Hán Nôm tương ứng:\n %s",
 					data,
 				),
 			),
