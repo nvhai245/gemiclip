@@ -1,125 +1,32 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	_ "embed"
 	"log"
+	"log/slog"
 	"os"
-	"strings"
-	"time"
 
-	"github.com/google/generative-ai-go/genai"
-	"golang.design/x/clipboard"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
+	"github.com/richardwilkes/toolbox/cmdline"
+	"github.com/richardwilkes/toolbox/fatal"
+	"github.com/richardwilkes/toolbox/log/tracelog"
+	"github.com/richardwilkes/unison"
 )
 
 func main() {
-	if err := clipboard.Init(); err != nil {
-		panic(err)
-	}
+	cmdline.AppName = "Gemiclip"
+	cmdline.AppCmdName = "gemiclip"
+	cmdline.CopyrightStartYear = "2024"
+	cmdline.CopyrightHolder = "Harry Nguyen"
+	cmdline.AppIdentifier = "com.gemiclip.app"
 
-	ctx := context.Background()
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		log.Fatal("GEMINI_API_KEY is not set")
-	}
+	unison.AttachConsole()
 
-	file, err := os.OpenFile("kotoba.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
+	cl := cmdline.New(true)
+	cl.Parse(os.Args[1:])
+	slog.SetDefault(slog.New(tracelog.New(log.Default().Writer(), slog.LevelInfo)))
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-
-	model := client.GenerativeModel("gemini-1.5-flash")
-	model.SafetySettings = []*genai.SafetySetting{
-		{
-			Category:  genai.HarmCategoryHarassment,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategoryHateSpeech,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategorySexuallyExplicit,
-			Threshold: genai.HarmBlockNone,
-		},
-		{
-			Category:  genai.HarmCategoryDangerousContent,
-			Threshold: genai.HarmBlockNone,
-		},
-	}
-
-	writeChan := make(chan genai.Part, 100)
-	ch := clipboard.Watch(ctx, clipboard.FmtText)
-	go writeToFile(file, writeChan)
-
-	for content := range ch {
-		data := invert(string(content))
-		timestamp := time.Now().Format("2006-01-02 15:04:05")
-		part := genai.Text(
-			fmt.Sprintf(
-				"\n---------------------------------\n%s\n---------------------------------\n%s\n",
-				timestamp,
-				data,
-			),
-		)
-		writeChan <- part
-		fmt.Println(part)
-		stream := model.GenerateContentStream(
-			ctx,
-			genai.Text(
-				fmt.Sprintf(
-					"Dịch sang tiếng Việt và giải thích ngữ pháp, viết cách đọc bằng hiragana, giải nghĩa tất cả các chữ Kanji xuất hiện trong đoạn văn kèm theo phiên âm furigana và từ Hán Nôm tương ứng:\n %s",
-					data,
-				),
-			),
-		)
-		for {
-			resp, err := stream.Next()
-			if err == iterator.Done {
-				break
-			}
-			if err != nil {
-				log.Fatal(err)
-			}
-			printResponse(resp, writeChan)
-		}
-	}
-}
-
-func writeToFile(file *os.File, writeChan chan genai.Part) {
-	for part := range writeChan {
-		fmt.Fprint(file, part)
-	}
-}
-
-func printResponse(resp *genai.GenerateContentResponse, writeChan chan genai.Part) {
-	for _, cand := range resp.Candidates {
-		if cand.Content != nil {
-			for _, part := range cand.Content.Parts {
-				writeChan <- part
-				fmt.Print(part)
-			}
-		}
-	}
-}
-
-func invert(s string) string {
-	lines := strings.Split(s, "\n")
-	s = ""
-	for i := len(lines) - 1; i >= 0; i-- {
-		s += lines[i]
-		if i != 0 {
-			s += "\n"
-		}
-	}
-	return s
+	unison.Start(unison.StartupFinishedCallback(func() {
+		_, err := NewMarkdownWindow(unison.PrimaryDisplay().Usable.Point)
+		fatal.IfErr(err)
+	})) // Never returns
 }
