@@ -127,6 +127,7 @@ func printResponse(
 	}
 }
 
+// TODO: separate macOS and Windows
 func invert(s string) string {
 	lines := strings.Split(s, "\n")
 	s = ""
